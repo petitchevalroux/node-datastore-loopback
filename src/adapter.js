@@ -91,13 +91,14 @@ class DatastoreLoopbackAdapter {
      * @returns {Promise}
      */
     getQueryString(params) {
+        const self = this;
         return new Promise(resolve => {
             if (!params) {
                 return resolve("");
             }
             const filter = {};
             if (params.filter) {
-                filter.where = params.filter;
+                filter.where = self.getWhere(params.filter);
             }
             if (params.limit) {
                 filter.limit = Number(params.limit);
@@ -110,6 +111,40 @@ class DatastoreLoopbackAdapter {
                     "filter": filter
                 }) : "");
         });
+    }
+
+    /**
+     * Return loopback formatted where
+     * @param {object} filter
+     * @returns {object}
+     */
+    getWhere(filter) {
+        const where = [],
+            self = this;
+        Object
+            .getOwnPropertyNames(filter)
+            .forEach(property => {
+                where[property] = self.getWhereValue(filter[property]);
+            });
+        return where;
+    }
+
+    /**
+     * Return loopback formatted where value
+     * @param {mixed} value
+     * @returns {mixed}
+     */
+    getWhereValue(value) {
+        const typeOfValue = typeof(value);
+        if (typeOfValue !== "object") {
+            return value;
+        } else if (Array.isArray(value)) {
+            return {
+                inq: value
+            };
+        } else {
+            return value;
+        }
     }
 
 }
