@@ -63,6 +63,33 @@ describe("adapter", () => {
                     return articles;
                 });
         });
+
+        it("in", () => {
+            const scope = nock("http://example.com")
+                .get(
+                    "/api/articles?filter%5Bwhere%5D%5Bid%5D%5Binq%5D%5B0%5D=1&filter%5Bwhere%5D%5Bid%5D%5Binq%5D%5B1%5D=2"
+                )
+                .reply(200, [{
+                    id: 1
+                }, {
+                    id: 2
+                }]);
+            return adapter.
+                find("articles", {
+                    filter: {
+                        id: [1, 2]
+                    }
+                })
+                .then(articles => {
+                    assert.deepEqual(articles, [{
+                        id: 1
+                    }, {
+                        id: 2
+                    }]);
+                    assert(scope.isDone());
+                    return articles;
+                });
+        });
     });
 
     describe("error", () => {
