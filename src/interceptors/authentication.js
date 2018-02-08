@@ -26,7 +26,14 @@ module.exports = interceptor({
     response: function(response, config, meta) {
         try {
             if (!response || !response.status || !response.status.code) {
-                throw new Error("No response status");
+                // Nock give an error in response, it's usefull for debugging
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+                throw new Error("No response status " +
+                    JSON.stringify({
+                        "response": response
+                    }));
             }
             // Authorized response
             if (response.status.code !== 401) {
