@@ -169,5 +169,35 @@ describe("adapter", () => {
                     return articles;
                 });
         });
+        it("keep authentication between calls", () => {
+            const scope = nock("http://example.com")
+                // Non authorized request
+                .get("/api/articles")
+                .reply(401, [])
+                // Authentication request
+                .post("/api/users/login")
+                .reply(200, {
+                    "id": "custom token 2"
+                })
+                // Authenticated request with Authorization header
+                .get("/api/articles")
+                .matchHeader("authorization",
+                    "custom token 2")
+                .reply(200, [])
+                // Authenticated request with Authorization header
+                .get("/api/comments")
+                .matchHeader("authorization",
+                    "custom token 2")
+                .reply(200, []);
+
+            return adapter.
+                find("articles")
+                .then(() => {
+                    return adapter.find("comments");
+                })
+                .then(() => {
+                    return scope.isDone();
+                });
+        });
     });
 });

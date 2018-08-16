@@ -2,26 +2,48 @@
 const interceptor = require("rest/interceptor"),
     Promise = require("bluebird");
 
-function authorize(client, config) {
-    return client({
-        method: "POST",
-        path: config.url,
-        entity: config.crendentials,
-        headers: {
-            "Content-Type": "application/json"
-        }
-    })
-        .then(response => {
-            return response.entity.id;
+var authenticator = {
+    setHeaders: function(headers) {
+        this.headers = headers;
+        return this.headers;
+    },
+    getHeaders: function() {
+        return this.headers || {};
+    },
+    authorize: function(client, config, request) {
+        var self = this;
+        return client({
+            method: "POST",
+            path: config.url,
+            entity: config.crendentials,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+            .then(response => {
+                self.setHeaders({
+                    "Authorization": response.entity.id
+                });
+                return client(self.getRequest(request));
+            });
+    },
+    getRequest: function(request) {
+        return Object.assign(request, {
+            headers: Object.assign(
+                request.headers || {}, this.getHeaders()
+            )
         });
-}
+    }
+};
+
+
 
 module.exports = interceptor({
     init: function(config) {
         return config;
     },
     request: function(request) {
-        return request;
+        return authenticator.getRequest(request);
     },
     response: function(response, config, meta) {
         try {
@@ -39,6 +61,7 @@ module.exports = interceptor({
             if (response.status.code !== 401) {
                 return response;
             }
+            authenticator.setHeaders({});
             // Response to authentication request and 401
             // authentication failed
             // if path equal authentication path, authentication failed
@@ -48,15 +71,12 @@ module.exports = interceptor({
                     status: 401
                 });
             }
-            return authorize(meta.client, config)
-                .then(token => {
-                    response.request.headers = Object.assign(
-                        response.request.headers || {}, {
-                            "Authorization": token
-                        }
-                    );
-                    return meta.client(response.request);
-                });
+            return authenticator
+                .authorize(
+                    meta.client,
+                    config,
+                    response.request
+                );
         } catch (err) {
             return Promise.reject(err);
         }
